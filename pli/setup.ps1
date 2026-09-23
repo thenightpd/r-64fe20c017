@@ -27,7 +27,7 @@ $AI실행모드 = $env:PLI_NONINTERACTIVE -eq '1'
 
 $공장 = 'C:\플리공장'
 $패키지이름 = '플리공장_셋팅코드.zip'
-$패키지SHA256 = '6232E3344E5AB9A5B9F9D2C7E478E378FA3B808E757018040AE7E5517F58012B'
+$패키지SHA256 = '10255C5B100D7405ECB474235262B688ABADEA18E200DD4D44A4DF109909EBF7'
 $코드파일 = @(
   '.gitignore', 'AGENTS.md', 'CLAUDE.md', '곡형식_8가지.md', '공장.py',
   '분석기.py', '샘플재료_이용안내.md', '시작하세요.md', '업로더.py', '작사스킬.md',
