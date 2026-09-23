@@ -1,15 +1,14 @@
 ﻿# =====================================================
-#  유튜브 플리 자동화 챌린지 — 설치 도우미 (윈도우)
+#  플리공장 자동화 프로젝트 — 설치 도우미 (윈도우)
 #
-#  쓰는 법 (설명서의 복사 버튼이 알아서 골라 줍니다):
-#    클로드 길 :  irm https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup.ps1 | iex
-#    코덱스 길 :  $env:PLI_AI='codex'; irm https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup.ps1 | iex
+#  쓰는 법: 교재 start.html 4단계의 「복사」 명령이 이 파일을 임시 폴더에 받아
+#  powershell -ExecutionPolicy Bypass -File 로 실행한다. ($env:PLI_AI 로 claude/codex 선택)
 #
 #  하는 일: 필요한 것을 "처음에 전부" 설치한다.
 #    Git · Python · ffmpeg · Node.js · Chrome · (클로드코드 또는 Codex) · Orca
 #    + 채널 분석용 파이썬 패키지
-#    + C:\플리공장 폴더와 재료/완성/기록 만들기
-#    + 다운로드 폴더의 셋팅코드 zip 풀어 넣기
+#    + C:\플리공장 폴더와 곡창고/재료/완성/기록 만들기
+#    + 다운로드·바탕화면(하위 폴더 포함)의 셋팅코드 zip 풀어 넣기
 #    + 수노용 Playwright 미리 받아 두기
 #    마지막에 자가진단 표를 보여주고 로그인 창을 연다.
 #
@@ -27,7 +26,13 @@ $AI실행모드 = $env:PLI_NONINTERACTIVE -eq '1'
 
 $공장 = 'C:\플리공장'
 $패키지이름 = '플리공장_셋팅코드.zip'
-$패키지SHA256 = '28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90'
+# 첫 값이 현재 배포본. 뒤 값은 2026-09-23판 — 그 ZIP을 가진 구매자가 다시 돌려도 막히지 않게 남겨 둔다.
+$패키지SHA256목록 = @(
+  'CAA226EE825B042AADE64635A4B15148759AB7A0673FC32296A0F1C7A752C085',
+  '28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90'
+)
+# 이름 뒤 ' (1)' 같은 브라우저 번호와 맥에서 만든 자모 분리(NFD) 이름도 받아들인다. 내용은 SHA-256으로 확인한다.
+$패키지이름규칙 = '^플리공장_셋팅코드( ?\(\d+\))?\.zip$'
 $코드파일 = @(
   '.gitignore', 'AGENTS.md', 'CLAUDE.md', '곡형식_8가지.md', '공장.py',
   '분석기.py', '샘플재료_이용안내.md', '시작하세요.md', '업로더.py', '작사스킬.md',
@@ -82,13 +87,13 @@ function Test-OrcaSignature($경로) {
 }
 
 function Test-PackageStructure($경로) {
-  if ([IO.Path]::GetFileName($경로) -cne $패키지이름) {
+  if ([IO.Path]::GetFileName($경로).Normalize() -notmatch $패키지이름규칙) {
     Warn ('파일 이름이 정확하지 않습니다. 필요한 이름: ' + $패키지이름)
     return $false
   }
   try {
     $실제SHA256 = (Get-FileHash -LiteralPath $경로 -Algorithm SHA256 -ErrorAction Stop).Hash
-    if ($실제SHA256 -cne $패키지SHA256) {
+    if ($패키지SHA256목록 -cnotcontains $실제SHA256) {
       Warn 'ZIP의 SHA-256이 공식 배포본과 다릅니다. 이 파일은 풀지 않습니다.'
       return $false
     }
@@ -217,10 +222,10 @@ function Need($id, $이름, $명령) {
 }
 
 Say '====================================================='
-Say '  유튜브 플리 자동화 챌린지 - 설치 도우미'
+Say '  플리공장 자동화 프로젝트 - 설치 도우미'
 Say ('  고른 AI: ' + $AI이름)
 Say '  이 창이 알아서 전부 설치합니다. 닫지 말고 기다려 주세요.'
-Say '  (10~20분 걸릴 수 있습니다. 중간에 조용해 보여도 진행 중입니다.)'
+Say '  (15~30분 걸릴 수 있습니다. 중간에 조용해 보여도 진행 중입니다.)'
 Say '====================================================='
 
 # ── 0) winget 확인 ─────────────────────────────────────
@@ -238,8 +243,21 @@ Ok 'winget 확인'
 Step '1/8  기본 도구 설치 (Git · Python · ffmpeg · Node.js · Chrome)'
 Need 'Git.Git'             'Git'      'git'
 Need 'Gyan.FFmpeg'         'ffmpeg'   'ffmpeg'
+if ($결과['ffmpeg'] -ne '확인 필요' -and -not (Has 'ffprobe')) {
+  Warn 'ffprobe 가 인식되지 않습니다 (창을 닫고 한 번 더 실행해 주세요)'; $결과['ffmpeg'] = '확인 필요'
+}
 Need 'OpenJS.NodeJS.LTS'   'Node.js'  'npm'
-Need 'Google.Chrome'       'Chrome'   'chrome'
+# Chrome 은 PATH 에 잘 안 잡힌다. 설치 경로를 먼저 보고, 없을 때만 winget 으로 설치한다.
+$크롬경로들 = @(
+  "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+  "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+  "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+)
+if ($크롬경로들 | Where-Object { Test-Path $_ } | Select-Object -First 1) {
+  Ok 'Chrome - 이미 있음'; $결과['Chrome'] = '있음'
+} else {
+  Need 'Google.Chrome'       'Chrome'   'chrome'
+}
 
 # Microsoft Store 실행 별칭은 명령이 있어 보여도 실제 Python이 아니다.
 $파이썬 = Find-Python
@@ -285,8 +303,14 @@ if ($AI -eq 'codex') {
   if (Has 'claude') { Ok '클로드코드 - 이미 있음'; $결과['클로드코드'] = '있음' }
   else {
     Say '  클로드코드 설치 중... 창을 닫지 마세요.'
-    try { Invoke-RestMethod 'https://claude.ai/install.ps1' | Invoke-Expression }
-    catch { Warn ('설치 중 오류: ' + $_.Exception.Message) }
+    # 공식 설치 스크립트는 별도 PowerShell 프로세스에서 돌린다.
+    # 같은 창에서 iex 로 돌리면 그 스크립트의 exit·오류 설정이 이 설치기까지 끝내 버릴 수 있다.
+    try {
+      $클로드설치파일 = Join-Path ([IO.Path]::GetTempPath()) 'pli-claude-install.ps1'
+      Invoke-WebRequest 'https://claude.ai/install.ps1' -OutFile $클로드설치파일 -UseBasicParsing -ErrorAction Stop
+      & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $클로드설치파일
+      Remove-Item -LiteralPath $클로드설치파일 -Force -ErrorAction SilentlyContinue
+    } catch { Warn ('설치 중 오류: ' + $_.Exception.Message) }
     RefreshPath
     if (Has 'claude') { Ok '클로드코드 설치 완료'; $결과['클로드코드'] = '방금 설치' }
     else { Warn '클로드코드가 아직 인식되지 않습니다 (창 닫고 한 번 더 실행)'; $결과['클로드코드'] = '확인 필요' }
@@ -356,10 +380,10 @@ if (-not $파이썬) {
 
 # ── 5) 공장 폴더 ───────────────────────────────────────
 Step '5/8  공장 폴더 만들기'
-foreach ($p in @($공장, "$공장\재료", "$공장\완성", "$공장\기록")) {
+foreach ($p in @($공장, "$공장\곡창고", "$공장\재료", "$공장\완성", "$공장\기록")) {
   if (-not (Test-Path $p)) { New-Item -ItemType Directory -Path $p -Force | Out-Null }
 }
-Ok ($공장 + ' 준비 완료 (재료 · 완성 · 기록)')
+Ok ($공장 + ' 준비 완료 (곡창고 · 재료 · 완성 · 기록)')
 $결과['공장 폴더'] = '준비됨'
 if (Protect-FactoryAcl) {
   Ok '공장 폴더 권한 - 현재 Windows 사용자만 접근'
@@ -380,10 +404,11 @@ $받은폴더 = @(
   "$env:USERPROFILE\OneDrive\Downloads",
   "$env:USERPROFILE\OneDrive\Desktop"
 ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+# 전체패키지를 풀어 두기만 한 경우(…\03_실습파일\플리공장_셋팅코드.zip)도 찾도록 하위 3단계까지 본다.
 $zip = $받은폴더 | ForEach-Object {
-  $후보경로 = Join-Path $_ $패키지이름
-  if (Test-Path -LiteralPath $후보경로) { Get-Item -LiteralPath $후보경로 }
-} | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+  Get-ChildItem -LiteralPath $_ -Filter '*.zip' -File -Recurse -Depth 3 -ErrorAction SilentlyContinue
+} | Where-Object { $_.Name.Normalize() -match $패키지이름규칙 } |
+  Sort-Object LastWriteTime -Descending | Select-Object -First 1
 
 if ($zip) {
   if (-not (Test-PackageStructure $zip.FullName)) {
@@ -433,7 +458,7 @@ if ($zip) {
   Warn ('셋팅코드 - ' + $패키지이름 + ' 을 찾지 못했습니다')
   Say '     1장 첫 샘플 영상을 만들려면 이 파일이 있어야 합니다.'
   Say ('     다운로드 폴더나 바탕화면에 ' + $패키지이름 + ' 이름 그대로 있는지 확인하고 이 설치 한 줄을 다시 실행하세요.')
-  Say '     이름 뒤에 (1) 이 붙었다면 원래 이름으로 바꿔 주세요.'
+  Say '     전체패키지 ZIP을 받았다면 먼저 압축을 풀어 두세요. 안의 03_실습파일 폴더까지 찾아봅니다.'
   $결과['셋팅코드'] = '확인 필요'
 }
 
@@ -485,15 +510,15 @@ if (-not (Has 'npx')) {
 Step '8/8  설치 결과'
 RefreshPath
 Write-Host ''
-Write-Host '  ┌──────────────────────┬──────────────┐' -ForegroundColor DarkGray
+Write-Host '  ┌──────────────────────┬──────────────────┐' -ForegroundColor DarkGray
 foreach ($k in $결과.Keys) {
   $v = $결과[$k]
   $색 = if ($v -match '있음|방금|준비됨|넣음') { 'Green' } else { 'Yellow' }
   Write-Host ('  │ ' + (폭맞춤 $k 20) + ' │ ') -NoNewline -ForegroundColor DarkGray
-  Write-Host (폭맞춤 $v 12) -NoNewline -ForegroundColor $색
+  Write-Host (폭맞춤 $v 16) -NoNewline -ForegroundColor $색
   Write-Host '│' -ForegroundColor DarkGray
 }
-Write-Host '  └──────────────────────┴──────────────┘' -ForegroundColor DarkGray
+Write-Host '  └──────────────────────┴──────────────────┘' -ForegroundColor DarkGray
 Write-Host ''
 
 $문제 = @($결과.Keys | Where-Object { $결과[$_] -notmatch '있음|방금|준비됨|넣음|나중에' })
@@ -508,17 +533,17 @@ if ($문제.Count -eq 0) {
 Write-Host ''
 Say '─────────────────────────────────────'
 if ($AI실행모드) {
-  Say 'AI 실행 모드: Day 0 로그인 상태를 사용하므로 로그인 확인을 건너뜁니다.'
+  Say 'AI 실행 모드: 이미 로그인된 상태를 사용하므로 로그인 확인을 건너뜁니다.'
   Say '새 AGENTS.md와 CLAUDE.md를 다시 읽고 자가진단을 계속하세요.'
 } else {
   if ($AI -eq 'codex' -and (Has 'codex')) {
     Say '마지막 순서: ChatGPT(Codex) 로그인'
     Say '검은 새 창이 열립니다. 안내에 따라 브라우저에서 로그인하세요.'
-    Start-Process cmd -ArgumentList '/k','codex login'
+    Start-Process cmd -ArgumentList '/k','codex login' -WorkingDirectory $공장
   } elseif ($AI -eq 'claude' -and (Has 'claude')) {
     Say '마지막 순서: 클로드 로그인'
     Say '검은 새 창이 열립니다. 안내에 따라 브라우저에서 로그인하세요.'
-    Start-Process cmd -ArgumentList '/k','claude'
+    Start-Process cmd -ArgumentList '/k','claude' -WorkingDirectory $공장
   } else {
     Warn ($AI이름 + ' 이 인식되지 않아 로그인 단계를 건너뜁니다.')
     Warn '이 창을 닫고 설치 한 줄을 한 번 더 실행해 주세요.'

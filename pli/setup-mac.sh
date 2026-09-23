@@ -1,6 +1,6 @@
 #!/bin/bash
 # =====================================================
-#  유튜브 플리 자동화 챌린지 — 설치 도우미 (맥)
+#  플리공장 자동화 프로젝트 — 설치 도우미 (맥)
 #
 #  쓰는 법 (설명서의 복사 버튼이 알아서 넣어 줍니다):
 #    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup-mac.sh)"
@@ -8,8 +8,8 @@
 #  하는 일: 필요한 것을 "처음에 전부" 설치한다.
 #    Homebrew · Git · Python · ffmpeg · Node.js · Chrome · Codex(또는 클로드코드) · Orca
 #    + 채널 분석용 파이썬 패키지
-#    + ~/플리공장 폴더와 재료/완성/기록 만들기
-#    + 셋팅코드 zip 이 있으면 풀어 넣기 (없어도 정상 — 챌린지 시작할 때 씀)
+#    + ~/플리공장 폴더와 곡창고/재료/완성/기록 만들기
+#    + 다운로드·바탕화면(하위 폴더 포함)의 셋팅코드 zip 풀어 넣기
 #    + 수노용 Playwright 미리 받아 두기
 #
 #  여러 번 실행해도 안전합니다 (이미 된 것은 건너뜁니다).
@@ -27,7 +27,9 @@ NONINTERACTIVE="${PLI_NONINTERACTIVE:-0}"
 
 FACTORY="$HOME/플리공장"
 ZIP_NAME="플리공장_셋팅코드.zip"
-ZIP_SHA256="28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90"
+ZIP_SHA256="CAA226EE825B042AADE64635A4B15148759AB7A0673FC32296A0F1C7A752C085"
+# 2026-09-23판 ZIP을 가진 구매자가 다시 돌려도 막히지 않게 남겨 둔다.
+ZIP_SHA256_PREV="28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90"
 CODE_FILES=".gitignore
 AGENTS.md
 CLAUDE.md
@@ -76,12 +78,14 @@ verify_orca_app() {
 
 validate_package() {
   PACKAGE_PATH="$1"
-  [ "$(basename "$PACKAGE_PATH")" = "$ZIP_NAME" ] || {
-    warn "ZIP 파일 이름은 정확히 $ZIP_NAME 이어야 합니다."
+  # 맥 파일 이름은 자모가 분리(NFD)돼 있을 수 있고, 브라우저가 " (1)"을 붙이기도 한다. 내용은 SHA-256으로 확인한다.
+  NAME_OK="$("$PYTHON" -c 'import os,re,sys,unicodedata; print(1 if re.match(r"^플리공장_셋팅코드( ?\(\d+\))?\.zip$", unicodedata.normalize("NFC", os.path.basename(sys.argv[1]))) else 0)' "$PACKAGE_PATH" 2>/dev/null)"
+  [ "$NAME_OK" = "1" ] || {
+    warn "ZIP 파일 이름은 $ZIP_NAME 이어야 합니다."
     return 1
   }
   ACTUAL_SHA256="$(shasum -a 256 "$PACKAGE_PATH" 2>/dev/null | awk '{print toupper($1)}')"
-  [ "$ACTUAL_SHA256" = "$ZIP_SHA256" ] || {
+  [ "$ACTUAL_SHA256" = "$ZIP_SHA256" ] || [ "$ACTUAL_SHA256" = "$ZIP_SHA256_PREV" ] || {
     warn 'ZIP의 SHA-256이 공식 배포본과 다릅니다. 이 파일은 풀지 않습니다.'
     return 1
   }
@@ -175,7 +179,7 @@ api_key_ready() {
 }
 
 say '====================================================='
-say '  유튜브 플리 자동화 챌린지 - 설치 도우미 (맥)'
+say '  플리공장 자동화 프로젝트 - 설치 도우미 (맥)'
 say "  고른 AI: $AI_NAME"
 say '  이 창이 알아서 전부 설치합니다. 닫지 말고 기다려 주세요.'
 say '  (15~30분 걸릴 수 있습니다. 조용해 보여도 진행 중입니다.)'
@@ -331,17 +335,17 @@ else
   if "$PYTHON" -c 'import googleapiclient' >/dev/null 2>&1; then
     ok '채널 분석용 패키지 준비 완료'; record "파이썬 패키지" "준비됨"
   else
-    warn '패키지 설치를 확인하지 못했습니다 (챌린지 시작할 때 AI가 다시 시도합니다)'
+    warn '패키지 설치를 확인하지 못했습니다 (나중에 AI가 다시 시도합니다)'
     record "파이썬 패키지" "나중에"
   fi
 fi
 
 # ── 7) 공장 폴더 + 셋팅코드 ────────────────────────────
 step '7/8  공장 폴더 만들기'
-mkdir -p "$FACTORY/재료" "$FACTORY/완성" "$FACTORY/기록"
-ok "$FACTORY 준비 완료 (재료 · 완성 · 기록)"
+mkdir -p "$FACTORY/곡창고" "$FACTORY/재료" "$FACTORY/완성" "$FACTORY/기록"
+ok "$FACTORY 준비 완료 (곡창고 · 재료 · 완성 · 기록)"
 record "공장 폴더" "준비됨"
-if chmod 700 "$FACTORY" "$FACTORY/재료" "$FACTORY/완성" "$FACTORY/기록" 2>/dev/null &&
+if chmod 700 "$FACTORY" "$FACTORY/곡창고" "$FACTORY/재료" "$FACTORY/완성" "$FACTORY/기록" 2>/dev/null &&
    find "$FACTORY" -type d -exec chmod 700 {} + 2>/dev/null &&
    find "$FACTORY" -type f -exec chmod 600 {} + 2>/dev/null; then
   ok '공장 폴더 권한 - 현재 macOS 사용자만 접근'
@@ -353,7 +357,23 @@ fi
 
 ZIPFILE=""
 ZIP_MTIME=0
-for CANDIDATE in "$HOME/Downloads/$ZIP_NAME" "$HOME/Desktop/$ZIP_NAME"; do
+# 전체패키지를 풀어 두기만 한 경우(…/03_실습파일/플리공장_셋팅코드.zip)도 찾도록 하위 폴더까지 본다.
+if [ -n "$PYTHON" ]; then
+  ZIPFILE="$(find "$HOME/Downloads" "$HOME/Desktop" -maxdepth 4 -type f -name '*.zip' 2>/dev/null | "$PYTHON" -c '
+import os, re, sys, unicodedata
+pat = re.compile(r"^플리공장_셋팅코드( ?\(\d+\))?\.zip$")
+best = None
+for line in sys.stdin:
+    p = line.rstrip("\n")
+    if pat.match(unicodedata.normalize("NFC", os.path.basename(p))):
+        m = os.path.getmtime(p)
+        if best is None or m > best[0]:
+            best = (m, p)
+if best:
+    print(best[1])
+' 2>/dev/null)"
+fi
+[ -n "$ZIPFILE" ] || for CANDIDATE in "$HOME/Downloads/$ZIP_NAME" "$HOME/Desktop/$ZIP_NAME"; do
   [ -f "$CANDIDATE" ] || continue
   CANDIDATE_MTIME="$(stat -f '%m' "$CANDIDATE" 2>/dev/null)"
   [ -n "$CANDIDATE_MTIME" ] || CANDIDATE_MTIME=0
@@ -489,7 +509,7 @@ fi
 printf '\n'
 say '─────────────────────────────────────'
 if [ "$NONINTERACTIVE" = "1" ]; then
-  say 'AI 실행 모드: Day 0 로그인 상태를 사용하므로 로그인 확인을 건너뜁니다.'
+  say 'AI 실행 모드: 이미 로그인된 상태를 사용하므로 로그인 확인을 건너뜁니다.'
   say '새 AGENTS.md와 CLAUDE.md를 다시 읽고 자가진단을 계속하세요.'
 elif [ "$AI" = "codex" ] && has codex; then
   say '마지막 순서: ChatGPT(Codex) 로그인'

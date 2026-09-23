@@ -2,7 +2,7 @@
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $url = 'https://thenightpd.github.io/r-64fe20c017/pli/setup.ps1'
-$expected = '78B220ECA9E4566D43E29B90428F4B54B15B4BE82BD3B2E461BEEB8D20175D70'
+$expected = '7CAED8D6F7DEEEA6D5EE976C8762E29E632A3097E27E3818781603961385C4E7'
 
 $client = New-Object Net.WebClient
 try {
@@ -22,5 +22,5 @@ if ($actual -cne $expected) {
   throw "Setup hash mismatch. Expected $expected but received $actual."
 }
 
-$code = [Text.Encoding]::UTF8.GetString($bytes)
+$code = [Text.Encoding]::UTF8.GetString($bytes).TrimStart([char]0xFEFF)
 & ([ScriptBlock]::Create($code))
