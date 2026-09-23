@@ -2,8 +2,8 @@
 #  유튜브 플리 자동화 챌린지 — 설치 도우미 (윈도우)
 #
 #  쓰는 법 (설명서의 복사 버튼이 알아서 골라 줍니다):
-#    클로드 길 :  irm https://raw.githubusercontent.com/KIMYOUNGIL21/r-64fe20c017/main/pli/setup.ps1 | iex
-#    코덱스 길 :  $env:PLI_AI='codex'; irm https://raw.githubusercontent.com/KIMYOUNGIL21/r-64fe20c017/main/pli/setup.ps1 | iex
+#    클로드 길 :  irm https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup.ps1 | iex
+#    코덱스 길 :  $env:PLI_AI='codex'; irm https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup.ps1 | iex
 #
 #  하는 일: 필요한 것을 "처음에 전부" 설치한다.
 #    Git · Python · ffmpeg · Node.js · Chrome · (클로드코드 또는 Codex) · Orca
@@ -27,7 +27,7 @@ $AI실행모드 = $env:PLI_NONINTERACTIVE -eq '1'
 
 $공장 = 'C:\플리공장'
 $패키지이름 = '플리공장_셋팅코드.zip'
-$패키지SHA256 = '10255C5B100D7405ECB474235262B688ABADEA18E200DD4D44A4DF109909EBF7'
+$패키지SHA256 = '28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90'
 $코드파일 = @(
   '.gitignore', 'AGENTS.md', 'CLAUDE.md', '곡형식_8가지.md', '공장.py',
   '분석기.py', '샘플재료_이용안내.md', '시작하세요.md', '업로더.py', '작사스킬.md',
@@ -430,9 +430,11 @@ if ($zip) {
   Ok ('셋팅코드 - 설치되어 있음 (새 ' + $패키지이름 + ' 없음)')
   $결과['셋팅코드'] = '있음'
 } else {
-  Ok '셋팅코드 - 오늘은 필요 없습니다 (챌린지 시작할 때 씁니다)'
-  Say ('     나중에 받은 ' + $패키지이름 + ' 을 다운로드한 뒤 이 설치 한 줄을 한 번 더 실행하세요.')
-  $결과['셋팅코드'] = '나중에'
+  Warn ('셋팅코드 - ' + $패키지이름 + ' 을 찾지 못했습니다')
+  Say '     1장 첫 샘플 영상을 만들려면 이 파일이 있어야 합니다.'
+  Say ('     다운로드 폴더나 바탕화면에 ' + $패키지이름 + ' 이름 그대로 있는지 확인하고 이 설치 한 줄을 다시 실행하세요.')
+  Say '     이름 뒤에 (1) 이 붙었다면 원래 이름으로 바꿔 주세요.'
+  $결과['셋팅코드'] = '확인 필요'
 }
 
 # ── 6-b) 채널 분석 API 키 상태 ─────────────────────────

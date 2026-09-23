@@ -3,7 +3,7 @@
 #  유튜브 플리 자동화 챌린지 — 설치 도우미 (맥)
 #
 #  쓰는 법 (설명서의 복사 버튼이 알아서 넣어 줍니다):
-#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/KIMYOUNGIL21/r-64fe20c017/main/pli/setup-mac.sh)"
+#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/thenightpd/r-64fe20c017/main/pli/setup-mac.sh)"
 #
 #  하는 일: 필요한 것을 "처음에 전부" 설치한다.
 #    Homebrew · Git · Python · ffmpeg · Node.js · Chrome · Codex(또는 클로드코드) · Orca
@@ -27,7 +27,7 @@ NONINTERACTIVE="${PLI_NONINTERACTIVE:-0}"
 
 FACTORY="$HOME/플리공장"
 ZIP_NAME="플리공장_셋팅코드.zip"
-ZIP_SHA256="10255C5B100D7405ECB474235262B688ABADEA18E200DD4D44A4DF109909EBF7"
+ZIP_SHA256="28446568F60C069A1E9C9BE5394FE3EA43E8F7892E1E8F8FB2A9CCBFAACDBB90"
 CODE_FILES=".gitignore
 AGENTS.md
 CLAUDE.md
@@ -293,7 +293,8 @@ else
   say '  Orca 내려받는 중...'
   TMPDIR_PLI="$(mktemp -d)"
   if curl -fsSL "https://github.com/stablyai/orca/releases/latest/download/$ORCA_DMG" -o "$TMPDIR_PLI/orca.dmg"; then
-    MOUNT="$(hdiutil attach "$TMPDIR_PLI/orca.dmg" -nobrowse -quiet | grep -o '/Volumes/.*' | head -n 1)"
+    # -quiet 를 주면 hdiutil 이 마운트 지점을 출력하지 않아 MOUNT 가 항상 빈 값이 된다.
+    MOUNT="$(hdiutil attach "$TMPDIR_PLI/orca.dmg" -nobrowse | grep -o '/Volumes/.*' | head -n 1)"
     APP="$(find "$MOUNT" -maxdepth 1 -name '*.app' 2>/dev/null | head -n 1)"
     if [ -n "$APP" ] && verify_orca_app "$APP"; then
       say '  Orca 코드 서명과 Gatekeeper 승인 확인 완료'
@@ -305,6 +306,7 @@ else
       fi
     else
       warn 'Orca 앱을 찾지 못했거나 코드 서명·Gatekeeper 검사를 통과하지 못했습니다'
+      printf '     브라우저에서 직접 받아 설치해 주세요: https://onorca.dev/download\n'
       record "Orca" "확인 필요"
     fi
     [ -n "$MOUNT" ] && hdiutil detach "$MOUNT" -quiet 2>/dev/null
@@ -423,10 +425,12 @@ if [ -n "$ZIPFILE" ]; then
 elif [ -f "$FACTORY/공장.py" ]; then
   ok "셋팅코드 - 설치되어 있음 (새 $ZIP_NAME 없음)"; record "셋팅코드" "있음"
 else
-  ok '셋팅코드 - 오늘은 필요 없습니다 (챌린지 시작할 때 씁니다)'
-  printf '     나중에 받은 %s 을 다운로드한 뒤 이 설치 한 줄을 한 번 더 실행하세요.\n' "$ZIP_NAME"
+  warn "셋팅코드 - $ZIP_NAME 을 찾지 못했습니다"
+  printf '     1장 첫 샘플 영상을 만들려면 이 파일이 있어야 합니다.\n'
+  printf '     다운로드 폴더나 바탕화면에 %s 이름 그대로 있는지 확인하고 이 설치 한 줄을 다시 실행하세요.\n' "$ZIP_NAME"
+  printf '     이름 뒤에 (1) 이 붙었다면 원래 이름으로 바꿔 주세요.\n'
   printf '     Safari가 자동으로 압축을 풀었다면 원본 zip을 다시 다운로드해 주세요.\n'
-  record "셋팅코드" "나중에"
+  record "셋팅코드" "확인 필요"
 fi
 
 # ── 7-b) 채널 분석 API 키 상태 ─────────────────────────

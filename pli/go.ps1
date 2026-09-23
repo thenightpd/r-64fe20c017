@@ -1,8 +1,8 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
 $url = 'https://thenightpd.github.io/r-64fe20c017/pli/setup.ps1'
-$expected = 'EDB3AF78FAD414BB00D898B093D9AEF290CDE511C2ED957B1E656A297EAF9150'
+$expected = '78B220ECA9E4566D43E29B90428F4B54B15B4BE82BD3B2E461BEEB8D20175D70'
 
 $client = New-Object Net.WebClient
 try {
